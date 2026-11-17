@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Vector Clock Simulator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Vector Clock Simulator</h1>
+        <p>Explore event ordering in distributed processes</p>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for message in messages %}<div class="notice">{{ message }}</div>{% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <section class="panel">
+        <h2>1. Create processes</h2>
+        <form method="post" class="inline-form">
+            <label>Number of processes (2–5)
+                <input type="number" name="count" min="2" max="5" value="{{ count }}">
+            </label>
+            <button name="action" value="reset">Create / Reset</button>
+        </form>
+    </section>
+
+    <section class="panel">
+        <h2>2. Current vector clocks</h2>
+        <div class="clock-grid">
+        {% for clock in clocks %}
+            <div class="clock-card">
+                <h3>P{{ loop.index }}</h3>
+                <div class="vector">[{{ clock | join(", ") }}]</div>
+            </div>
+        {% endfor %}
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2>3. Generate events</h2>
+        <form method="post" class="event-form">
+            <label>Process
+                <select name="process">
+                    {% for i in range(count) %}<option value="{{ i }}">P{{ i + 1 }}</option>{% endfor %}
+                </select>
+            </label>
+            <button name="action" value="local">Local Event</button>
+        </form>
+
+        <form method="post" class="event-form">
+            <label>Sender
+                <select name="process">
+                    {% for i in range(count) %}<option value="{{ i }}">P{{ i + 1 }}</option>{% endfor %}
+                </select>
+            </label>
+            <label>Receiver
+                <select name="target">
+                    {% for i in range(count) %}<option value="{{ i }}">P{{ i + 1 }}</option>{% endfor %}
+                </select>
+            </label>
+            <button name="action" value="send">Send Message</button>
+        </form>
+
+        <form method="post" class="event-form">
+            <label>Receiving process
+                <select name="process">
+                    {% for i in range(count) %}<option value="{{ i }}">P{{ i + 1 }}</option>{% endfor %}
+                </select>
+            </label>
+            <label>Pending message
+                <select name="message_id">
+                    {% for m in messages %}
+                      {% if not m.get('received') %}
+                        <option value="{{ m.id }}">Message #{{ m.id }}: P{{ m.sender + 1 }} → P{{ m.receiver + 1 }}</option>
+                      {% endif %}
+                    {% endfor %}
+                </select>
+            </label>
+            <button name="action" value="receive">Receive Message</button>
+        </form>
+        <p class="hint">A send event saves a copy of the sender's clock. The receiver merges it with its own clock when the message is received.</p>
+    </section>
+
+    <section class="panel">
+        <h2>4. Event history</h2>
+        {% if events %}
+        <div class="table-wrap">
+        <table>
+            <tr><th>Event ID</th><th>Process</th><th>Action</th><th>Vector Clock</th></tr>
+            {% for e in events %}
+            <tr><td>{{ e.id }}</td><td>{{ e.process }}</td><td>{{ e.action }}</td><td>[{{ e.clock | join(", ") }}]</td></tr>
+            {% endfor %}
+        </table>
+        </div>
+        {% else %}<p>No events yet. Generate a local event or send a message.</p>{% endif %}
+    </section>
+
+    <section class="panel">
+        <h2>5. Compare two events</h2>
+        {% if events|length >= 2 %}
+        <form method="post" action="{{ url_for('compare') }}" class="event-form">
+            <label>First event
+                <select name="first">{% for e in events %}<option value="{{ e.id }}">Event {{ e.id }} ({{ e.process }})</option>{% endfor %}</select>
+            </label>
+            <label>Second event
+                <select name="second">{% for e in events %}<option value="{{ e.id }}">Event {{ e.id }} ({{ e.process }})</option>{% endfor %}</select>
+            </label>
+            <button type="submit">Compare Events</button>
+        </form>
+        {% else %}<p>Create at least two events to compare them.</p>{% endif %}
+        {% if comparison %}<div class="result">{{ comparison }}</div>{% endif %}
+    </section>
+
+    <section class="panel">
+        <h2>Vector clock rules</h2>
+        <ol>
+            <li><b>Local event:</b> Increase the process's own clock value by 1.</li>
+            <li><b>Send event:</b> Increase the sender's own value and attach its vector clock to the message.</li>
+            <li><b>Receive event:</b> Take the maximum of both vectors, then increase the receiver's own value.</li>
+            <li><b>Causality:</b> A is before B if every value in A is less than or equal to B and at least one is smaller.</li>
+            <li><b>Concurrency:</b> If neither vector is before the other, the events are concurrent.</li>
+        </ol>
+    </section>
+    <footer>Mini Project – Distributed Systems</footer>
+</div>
+</body>
+</html>
